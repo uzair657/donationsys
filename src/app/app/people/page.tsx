@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/app/lib/supabaseClient';
 
-type Person = { id:string; full_name:string; cnic:string; address:string|null; };
+import { useState } from 'react';
+import { supabase } from '@/app/lib/supabaseClient';
+import type { Person, Season } from '@/app/types/db';
 
 export default function PeoplePage() {
   const [fullName, setFullName] = useState('');
@@ -10,30 +10,35 @@ export default function PeoplePage() {
   const [address, setAddress] = useState('');
   const [amount, setAmount] = useState<number>(0);
   const [note, setNote] = useState('');
-  const [msg, setMsg] = useState<{text:string;color:string}|null>(null);
+  const [msg, setMsg] = useState<{ text: string; color: 'red' | 'green' } | null>(null);
 
-  const getActiveSeason = async () => {
+  const getActiveSeason = async (): Promise<Season | null> => {
     const { data } = await supabase.from('seasons').select('*').eq('is_active', true).maybeSingle();
-    return data;
+    return (data as Season | null) ?? null;
   };
 
   const findOrCreatePerson = async (): Promise<Person> => {
     const { data: existing } = await supabase.from('people').select('*').eq('cnic', cnic).maybeSingle();
-    if (existing) return existing as any;
-    const { data, error } = await supabase.from('people').insert({ full_name: fullName, cnic, address }).select().single();
-    if (error) throw error;
-    return data as any;
+    if (existing) return existing as Person;
+
+    const { data, error } = await supabase
+      .from('people')
+      .insert({ full_name: fullName, cnic, address })
+      .select()
+      .single();
+    if (error || !data) throw error ?? new Error('Failed to create person');
+    return data as Person;
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setMsg(null);
-    try {
-      const season = await getActiveSeason();
-      if (!season) { setMsg({ text:'No active season selected.', color:'crimson' }); return; }
 
+    const season = await getActiveSeason();
+    if (!season) { setMsg({ text: 'No active season selected.', color: 'red' }); return; }
+
+    try {
       const person = await findOrCreatePerson();
 
-      // Has already donated in this active season?
       const { data: exists } = await supabase
         .from('donations')
         .select('id')
@@ -42,45 +47,42 @@ export default function PeoplePage() {
         .maybeSingle();
 
       if (exists) {
-        setMsg({ text:`Already donated in ${season.name} ${season.year}.`, color:'crimson' });
+        setMsg({ text: `Already donated in ${season.name} ${season.year}.`, color: 'red' });
         return;
       }
 
-      // Insert donation
       const { error } = await supabase.from('donations').insert({
         person_id: person.id,
         season_id: season.id,
         amount,
-        notes: note
+        notes: note,
       });
       if (error) throw error;
 
-      setMsg({ text:'Saved. New donation recorded.', color:'green' });
+      setMsg({ text: 'Saved. New donation recorded.', color: 'green' });
       setFullName(''); setCnic(''); setAddress(''); setAmount(0); setNote('');
-    } catch (err: any) {
-      setMsg({ text: err.message || 'Error', color:'crimson' });
+    } catch (err) {
+      setMsg({ text: err instanceof Error ? err.message : 'Error', color: 'red' });
     }
   };
 
   return (
-    <div className="container">
-      <h2 className="title">Add person & donation</h2>
-      <div className="card">
-        <form onSubmit={submit}>
-          <div className="row">
-            <input className="input" placeholder="full name" value={fullName} onChange={e=>setFullName(e.target.value)} />
-            <input className="input" placeholder="cnic" value={cnic} onChange={e=>setCnic(e.target.value)} />
+    <div className="space-y-3">
+      <h2 className="text-xl font-semibold">Add person & donation</h2>
+      <div className="rounded-xl border border-zinc-200 bg-white p-4">
+        <form onSubmit={submit} className="space-y-2">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <input className="rounded-lg border px-3 py-2" placeholder="full name" value={fullName} onChange={e=>setFullName(e.target.value)} />
+            <input className="rounded-lg border px-3 py-2" placeholder="cnic" value={cnic} onChange={e=>setCnic(e.target.value)} />
           </div>
-          <div className="row">
-            <input className="input" placeholder="address" value={address} onChange={e=>setAddress(e.target.value)} />
-            <input className="input" type="number" placeholder="amount" value={amount} onChange={e=>setAmount(parseFloat(e.target.value||'0'))} />
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <input className="rounded-lg border px-3 py-2" placeholder="address" value={address} onChange={e=>setAddress(e.target.value)} />
+            <input className="rounded-lg border px-3 py-2" type="number" placeholder="amount" value={amount} onChange={e=>setAmount(Number(e.target.value || 0))} />
           </div>
-          <div style={{ margin:'8px 0' }}>
-            <input className="input" placeholder="notes (optional)" value={note} onChange={e=>setNote(e.target.value)} />
-          </div>
-          <button className="btn">Save</button>
+          <input className="w-full rounded-lg border px-3 py-2" placeholder="notes (optional)" value={note} onChange={e=>setNote(e.target.value)} />
+          <button className="rounded-lg border px-3 py-2">Save</button>
         </form>
-        {msg && <p style={{ color: msg.color, marginTop: 10 }}>{msg.text}</p>}
+        {msg && <p className={`mt-2 text-sm ${msg.color === 'green' ? 'text-green-600' : 'text-red-600'}`}>{msg.text}</p>}
       </div>
     </div>
   );
