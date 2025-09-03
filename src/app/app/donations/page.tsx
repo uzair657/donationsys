@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect,  useState } from 'react';
 import { supabase } from '@/app/lib/supabaseClient';
 
 type Person = { id:string; full_name:string; cnic:string; address:string|null };
