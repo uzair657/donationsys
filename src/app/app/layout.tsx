@@ -1,4 +1,3 @@
-// app/app/layout.tsx
 'use client';
 
 import Link from 'next/link';
@@ -9,18 +8,22 @@ import { supabase } from '@/app/lib/supabaseClient';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
     (async () => {
       const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) { router.replace('/auth/signin'); return; }
+      if (!auth.user) {
+        router.replace('/auth/signin');
+        return;
+      }
 
       const email = auth.user.email ?? '';
       setEmail(email);
 
-      // try user_public.first_name first
+   
       let name = '';
       const { data: prof } = await supabase
         .from('user_public')
@@ -29,10 +32,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (prof?.first_name) name = prof.first_name;
-      // fallback: auth.user.user_metadata or email prefix
+    
       if (!name) name = (auth.user.user_metadata as any)?.first_name || (email?.split('@')[0] ?? '');
 
       setDisplayName(name);
+      setLoading(false); 
     })();
   }, [router]);
 
@@ -50,6 +54,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const active = (href: string) =>
     pathname === href ? 'text-white' : 'text-white/90 hover:bg-white/5';
+
+  if (loading) {
+    
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen px-4 py-6">

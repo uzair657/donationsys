@@ -1,4 +1,4 @@
-// src/types/db.ts
+
 export type Person = {
   id: string;
   full_name: string;

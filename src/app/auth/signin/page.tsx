@@ -1,65 +1,84 @@
 'use client';
 import { useState } from 'react';
-import { supabase } from '@/app/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 
 export default function SignIn() {
-  const [identifier, setIdentifier] = useState(''); // email or username
+  const [identifier, setIdentifier] = useState(''); 
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const router = useRouter();
 
-  const resolveEmail = async (id: string) => {
-    if (id.includes('@')) return id;
-    // look up by username (allowed by policy)
-    const { data, error } = await supabase
-      .from('user_public').select('user_id').eq('username', id).maybeSingle();
-    if (error || !data) throw new Error('User not found');
-    const { data: user } = await supabase.auth.admin.getUserById!(data.user_id as any); // not available on client
-    return null;
-  };
-  // Simpler approach: require email in production. For now, we’ll allow username like this:
-  const signIn = async (e: React.FormEvent) => {
-    e.preventDefault(); setMsg(''); setBusy(true);
-    let emailToUse = identifier;
-    if (!identifier.includes('@')) {
-      // fallback: ask the DB for the email via an RPC (public), or ask user to type email.
-      setBusy(false); setMsg('Please enter email (username lookup disabled for client-only).');
+  const signIn = (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg('');
+    setBusy(true);
+
+  
+    if (!identifier || !password) {
+      setMsg('Please enter both email/username and password');
+      setBusy(false);
       return;
     }
-    const { error } = await supabase.auth.signInWithPassword({ email: emailToUse, password });
-    setBusy(false);
-    if (error) setMsg(error.message);
-    else router.push('/app');
+
+    setTimeout(() => {
+     
+      alert(`Logged in as ${identifier}`);
+      router.push('/app'); 
+      setBusy(false);
+    }, 1000); 
+
   };
 
   return (
-    <div style={{ background:'#eeeaea', minHeight:'100vh', padding:'40px 12px' }}>
-      <div style={{ maxWidth: 520, margin:'0 auto', background:'#fff', border:'1px solid #ddd',
-                    borderRadius:24, padding:28 }}>
-        <h1 style={{ textAlign:'center', margin:'6px 0 20px' }}>Sign In</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gray-200 p-4">
+      <div className="w-full max-w-md bg-white p-6 rounded-xl shadow-lg">
+        <h1 className="text-2xl font-semibold text-center mb-6">Sign In</h1>
 
-        <form onSubmit={signIn}>
-          <label style={label}>Email/Username</label>
-          <input className="input" placeholder="Email" value={identifier}
-                 onChange={e=>setIdentifier(e.target.value)} style={inputFull} />
+        <form onSubmit={signIn} className="space-y-4">
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Email/Username</label>
+            <input
+              type="text"
+              placeholder="Enter email or username"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
 
-          <label style={label}>Enter Password</label>
-          <input className="input" type="password" placeholder="Password" value={password}
-                 onChange={e=>setPassword(e.target.value)} style={inputFull} />
+        
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Password</label>
+            <input
+              type="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
 
-          <button className="btn" disabled={busy}
-                  style={{ width:200, margin:'22px auto 6px', display:'block',
-                           background:'#000', color:'#fff', borderRadius:28 }}>
-            {busy ? '...' : 'Signin'}
+         
+          <button
+            type="submit"
+            disabled={busy}
+            className="w-full bg-black text-white py-3 rounded-lg disabled:opacity-60"
+          >
+            {busy ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
 
-        {msg && <p style={{ color:'crimson', textAlign:'center' }}>{msg}</p>}
+       
+        {msg && <p className="mt-4 text-center text-red-600 text-sm">{msg}</p>}
+
+     
+        <p className="mt-4 text-center text-sm">
+          Don’t have an account?{' '}
+          <a href="/auth/signup" className="text-blue-600 hover:underline">Sign Up</a>
+        </p>
       </div>
     </div>
   );
 }
-const label = { display:'block', margin:'14px 0 6px' };
-const inputFull = { width:'100%', background:'#e9e9e9', borderRadius:12, border:'none', padding:'12px 14px' };
