@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/app/lib/supabaseClient';
-import type { Person, Season } from '@/app/types/db';
 
 export default function PeoplePage() {
   const [fullName, setFullName] = useState('');
@@ -12,78 +10,125 @@ export default function PeoplePage() {
   const [note, setNote] = useState('');
   const [msg, setMsg] = useState<{ text: string; color: 'red' | 'green' } | null>(null);
 
-  const getActiveSeason = async (): Promise<Season | null> => {
-    const { data } = await supabase.from('seasons').select('*').eq('is_active', true).maybeSingle();
-    return (data as Season | null) ?? null;
-  };
+  // Mock data for active season and donations
+  const activeSeason = { name: 'Winter 2025', year: 2025 };
+  const donationList = [
+    { id: '1', fullName: 'John Doe', cnic: '12345-6789', amount: 1000, notes: 'First donation' },
+    { id: '2', fullName: 'Jane Smith', cnic: '98765-4321', amount: 2000, notes: 'Second donation' },
+  ];
 
-  const findOrCreatePerson = async (): Promise<Person> => {
-    const { data: existing } = await supabase.from('people').select('*').eq('cnic', cnic).maybeSingle();
-    if (existing) return existing as Person;
+  // Simulate adding a donation
+  const addDonation = (e: React.FormEvent) => {
+    e.preventDefault();
 
-    const { data, error } = await supabase
-      .from('people')
-      .insert({ full_name: fullName, cnic, address })
-      .select()
-      .single();
-    if (error || !data) throw error ?? new Error('Failed to create person');
-    return data as Person;
-  };
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault(); setMsg(null);
-
-    const season = await getActiveSeason();
-    if (!season) { setMsg({ text: 'No active season selected.', color: 'red' }); return; }
-
-    try {
-      const person = await findOrCreatePerson();
-
-      const { data: exists } = await supabase
-        .from('donations')
-        .select('id')
-        .eq('person_id', person.id)
-        .eq('season_id', season.id)
-        .maybeSingle();
-
-      if (exists) {
-        setMsg({ text: `Already donated in ${season.name} ${season.year}.`, color: 'red' });
-        return;
-      }
-
-      const { error } = await supabase.from('donations').insert({
-        person_id: person.id,
-        season_id: season.id,
-        amount,
-        notes: note,
-      });
-      if (error) throw error;
-
-      setMsg({ text: 'Saved. New donation recorded.', color: 'green' });
-      setFullName(''); setCnic(''); setAddress(''); setAmount(0); setNote('');
-    } catch (err) {
-      setMsg({ text: err instanceof Error ? err.message : 'Error', color: 'red' });
+    if (!fullName || !cnic || !address || !amount) {
+      setMsg({ text: 'Please fill in all fields', color: 'red' });
+      return;
     }
+
+    const personExists = donationList.some((person) => person.cnic === cnic);
+
+    if (personExists) {
+      setMsg({ text: `Already donated in ${activeSeason.name} ${activeSeason.year}`, color: 'red' });
+      return;
+    }
+
+    // Simulate donation saving
+    donationList.push({ id: String(donationList.length + 1), fullName, cnic, amount, notes: note });
+
+    setMsg({ text: 'Saved. New donation recorded.', color: 'green' });
+    setFullName('');
+    setCnic('');
+    setAddress('');
+    setAmount(0);
+    setNote('');
   };
 
   return (
-    <div className="space-y-3">
-      <h2 className="text-xl font-semibold">Add person & donation</h2>
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold">Add Person & Donation</h2>
+
+      {/* Donation Form */}
       <div className="rounded-xl border border-zinc-200 bg-white p-4">
-        <form onSubmit={submit} className="space-y-2">
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            <input className="rounded-lg border px-3 py-2" placeholder="full name" value={fullName} onChange={e=>setFullName(e.target.value)} />
-            <input className="rounded-lg border px-3 py-2" placeholder="cnic" value={cnic} onChange={e=>setCnic(e.target.value)} />
+        <form onSubmit={addDonation} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <input
+              type="text"
+              placeholder="Full Name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg"
+            />
+            <input
+              type="text"
+              placeholder="CNIC"
+              value={cnic}
+              onChange={(e) => setCnic(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg"
+            />
           </div>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            <input className="rounded-lg border px-3 py-2" placeholder="address" value={address} onChange={e=>setAddress(e.target.value)} />
-            <input className="rounded-lg border px-3 py-2" type="number" placeholder="amount" value={amount} onChange={e=>setAmount(Number(e.target.value || 0))} />
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <input
+              type="text"
+              placeholder="Address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg"
+            />
+            <input
+              type="number"
+              placeholder="Amount"
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              className="w-full p-3 border border-gray-300 rounded-lg"
+            />
           </div>
-          <input className="w-full rounded-lg border px-3 py-2" placeholder="notes (optional)" value={note} onChange={e=>setNote(e.target.value)} />
-          <button className="rounded-lg border px-3 py-2">Save</button>
+
+          <textarea
+            placeholder="Notes (optional)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-lg"
+          ></textarea>
+
+          <button
+            type="submit"
+            className="w-full py-3 rounded-lg bg-black text-white disabled:opacity-60"
+          >
+            Save Donation
+          </button>
         </form>
-        {msg && <p className={`mt-2 text-sm ${msg.color === 'green' ? 'text-green-600' : 'text-red-600'}`}>{msg.text}</p>}
+
+        {/* Message */}
+        {msg && (
+          <p className={`mt-3 text-center text-sm ${msg.color === 'green' ? 'text-green-600' : 'text-red-600'}`}>
+            {msg.text}
+          </p>
+        )}
       </div>
+
+      {/* Donation List */}
+      <h3 className="text-lg font-semibold">Donation List</h3>
+      {donationList.map((donation) => (
+        <div key={donation.id} className="rounded-xl border border-zinc-200 bg-white p-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <div><b>{donation.fullName}</b> – {donation.cnic}</div>
+              <div className="text-sm text-gray-600">{donation.notes}</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-xl font-semibold">{donation.amount} PKR</div>
+              <button
+                onClick={() => setMsg({ text: `Donation with ID ${donation.id} deleted`, color: 'red' })}
+                className="px-3 py-1 bg-red-600 text-white rounded-lg"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

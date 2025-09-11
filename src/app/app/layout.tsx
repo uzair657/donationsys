@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { supabase } from '@/app/lib/supabaseClient';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [displayName, setDisplayName] = useState('');
@@ -12,33 +11,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Simulate static user data (no backend or Supabase)
   useEffect(() => {
-    (async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) {
-        router.replace('/auth/signin');
-        return;
-      }
-
-      const email = auth.user.email ?? '';
-      setEmail(email);
-
-   
-      let name = '';
-      const { data: prof } = await supabase
-        .from('user_public')
-        .select('first_name, last_name')
-        .eq('user_id', auth.user.id)
-        .maybeSingle();
-
-      if (prof?.first_name) name = prof.first_name;
-    
-      if (!name) name = (auth.user.user_metadata as any)?.first_name || (email?.split('@')[0] ?? '');
-
-      setDisplayName(name);
-      setLoading(false); 
-    })();
-  }, [router]);
+    setTimeout(() => {
+      // Simulate the "logged-in" user data
+      setDisplayName('Alishba');  // Simulated name
+      setEmail('alishba@gmail.com');  // Simulated email
+      setLoading(false);
+    }, 1000);  // Simulate loading delay
+  }, []);
 
   const nav = [
     { href: '/app', label: 'Overview' },
@@ -47,16 +28,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: '/app/seasons', label: 'Seasons' },
   ];
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    router.replace('/auth/signin');
+  const signOut = () => {
+    // Simulate sign-out process (e.g., reset state or redirect to sign-in)
+    alert('You have been signed out');
+    router.replace('/auth/signin');  // Redirect to sign-in page (static page)
   };
 
   const active = (href: string) =>
     pathname === href ? 'text-white' : 'text-white/90 hover:bg-white/5';
 
   if (loading) {
-    
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
